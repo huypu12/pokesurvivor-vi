@@ -1,0 +1,3 @@
+# Copia privada no oficial de PokéSurvivor: que no la indexe nadie.
+User-agent: *
+Disallow: /
