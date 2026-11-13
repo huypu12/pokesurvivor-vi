@@ -47,10 +47,6 @@
       // đồng bộ active từ save
       this.megaActive = Object.assign({}, M.Save.data.active || {});
 
-      // ---- Phần 19: sự kiện Boss
-      M.Event.beginRun();
-      M.Event.resumeFromSave();
-
       this.running = true;
       this.lastT = performance.now();
       requestAnimationFrame((t) => this._loop(t));
@@ -189,9 +185,15 @@
     /* ------------------------------------------------------------ */
     _startCinematic(form, onDone) {
       M.UI.close();
-      const W = this.W, H = this.H;
-      const cx = W / 2, cy = H / 2 + 30;
-      const dex = form.dex;
+      const W = window.innerWidth, H = window.innerHeight;
+      const E0 = M.ENG && M.ENG();
+      const pl0 = E0 && E0.Game ? E0.Game.player : null;
+      let cx = W / 2, cy = H / 2 + 30;
+      if (pl0 && E0.Camera) {
+        cx = pl0.x - E0.Camera.x + E0.Camera.w / 2;
+        cy = pl0.y - E0.Camera.y + E0.Camera.h / 2;
+        if (!isFinite(cx) || !isFinite(cy)) { cx = W / 2; cy = H / 2 + 30; }
+      }
 
       const opener = (ctx, o) => {
         // vẽ sprite thường của player: dùng G.Sprites nếu có
@@ -261,34 +263,30 @@
     },
 
     _tick(dt) {
-      if (!this.canvas || !this.ctx || this.canvas !== null) {
-        if (!this.canvas) this._bindCanvas();
+      if (!this.canvas) this._bindCanvas();
+
+      // ---- lấy state thật của game (đồng hồ HUD có sẵn)
+      const E = M.ENG && M.ENG();
+      const st = E && E.Game ? E.Game.st : null;
+      const pl = E && E.Game ? E.Game.player : null;
+
+      // ---- nối vào Grieta có sẵn
+      if (M.Rift && st) {
+        M.Rift.tick(st, pl);
+        M.Rift.pollArena();
       }
+
+      // ---- cinematic (khi người chơi bấm Mega)
+      if (M.Cine.active) {
+        M.Cine.update(dt);
+        this._paintCine();
+      }
+
       if (!this.ctx) return;
+    },
 
-      M.Event.update(dt);
-
-      const bossOn = M.Boss.open;
-      const cineOn = M.Cine.active;
-
-      // HUD đếm giờ luôn hiện (Phần 19.1)
-      this._drawEventHud();
-
-      if (!bossOn && !cineOn) {
-        M.Cam.update(dt);
-        return;
-      }
-
-      // ---- chế độ Boss arena: vẽ lên canvas overlay riêng
-      if (bossOn) {
-        if (M.Cine.active) M.Cine.update(dt);
-        else M.Boss.update(dt);
-        this._drawBossOverlay(bossOn);
-        return;
-      }
-
-      // ---- chế độ Cinematic trên nền game
-      M.Cine.update(dt);
+    /** Vẽ cinematic lên overlay riêng */
+    _paintCine() {
       const cv = this._ensureOverlay();
       const W = window.innerWidth, H = window.innerHeight;
       const dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -304,30 +302,7 @@
       ctx.fillRect(0, 0, W, H);
       M.Cam.drawOverlay(ctx, W, H);
       M.Cine.draw(ctx, W, H);
-      if (!M.Cine.active) { cv.style.display = 'none'; }
-    },
-
-    /** HUD sự kiện ở lớp riêng (không chặn chạm) */
-    _drawEventHud() {
-      if (!this._hud) {
-        const cv = document.createElement('canvas');
-        cv.id = 'psm-hud';
-        cv.style.cssText = 'position:fixed;left:0;top:0;width:100%;height:100%;' +
-          'z-index:99984;pointer-events:none;';
-        document.body.appendChild(cv);
-        this._hud = cv;
-        this._hudCtx = cv.getContext('2d');
-      }
-      const cv = this._hud;
-      const W = window.innerWidth, H = window.innerHeight;
-      const dpr = Math.min(2, window.devicePixelRatio || 1);
-      if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) {
-        cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
-      }
-      const ctx = this._hudCtx;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, W, H);
-      M.Event.draw(ctx, W, H);
+      if (!M.Cine.active) cv.style.display = 'none';
     },
 
     /** Canvas overlay riêng: luôn đúng kích thước, không đụng canvas game */

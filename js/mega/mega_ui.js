@@ -143,7 +143,6 @@
       const tabs = [
         ['dex', 'Pokédex Mega'],
         ['boss', 'Boss'],
-        ['event', 'Vùng Boss ⏱'],
         ['inv', 'Kho đá'],
         ['set', 'Cài đặt'],
         ['note', 'Cập nhật'],
@@ -196,13 +195,11 @@
       this.titleEl.textContent =
         t === 'dex' ? 'MEGA POKÉDEX  ·  ' + M.FORMS.length + ' dạng' :
         t === 'boss' ? 'BOSS BATTLE' :
-        t === 'event' ? 'VÙNG ĐẤT BOSS' :
         t === 'inv' ? 'KHO ĐÁ MEGA' :
         t === 'set' ? 'CÀI ĐẶT MEGA' : 'CÓ GÌ MỚI';
       this.body.innerHTML = '';
       if (t === 'dex') this.renderDex();
       else if (t === 'boss') this.renderBoss();
-      else if (t === 'event') this.renderEvent();
       else if (t === 'inv') this.renderInv();
       else if (t === 'set') this.renderSet();
       else this.renderNotes();
@@ -316,10 +313,15 @@
       row.style.background = 'none'; row.style.border = 'none'; row.style.padding = '0';
 
       if (st === 'LOCKED' || st === 'UNLOCKED') {
-        const b = el('button', 'psm-btn', '⚔ ĐÁNH BOSS');
+        const b = el('button', 'psm-btn ghost', '🔒 Chưa mở khoá');
         b.style.flex = '1';
-        b.onclick = () => { this.closeSheet(); this.close(); M.Boss.start(f, null, (r) => this.afterBoss(r)); };
+        b.disabled = true;
         row.appendChild(b);
+        const hint = el('div', 'psm-desc');
+        hint.style.marginTop = '8px';
+        hint.innerHTML = 'Vào game, chờ đồng hồ đạt <b>20:00</b>. ' +
+          'Một <b>Grieta</b> sẽ mở ra — bước vào đó để đấu boss Mega ' + f.form + '.';
+        sh.appendChild(hint);
       }
       if (st === 'AVAILABLE') {
         const b = el('button', 'psm-btn', '✨ MEGA TIẾN HOÁ');
@@ -358,75 +360,6 @@
       }
     },
 
-    renderEvent() {
-      const Ev = M.Event;
-      const b = this.body;
-
-      // đồng hồ toàn cục 20:00
-      const row = el('div', 'psm-row');
-      row.style.flexDirection = 'column';
-      row.style.alignItems = 'stretch';
-      const pct = Math.max(0, Ev.global / Ev.LIMITS.global);
-      row.innerHTML =
-        '<div style="display:flex;justify-content:space-between;align-items:baseline">' +
-        '<b style="font-size:13px">⏱ Cổng Boss toàn cầu</b>' +
-        '<b style="font-size:16px;color:' + (pct < 0.1 ? '#ff4d6d' : pct < 0.3 ? '#ffb703' : '#7dffb0') + '">' +
-        M.fmtTime(Ev.global) + ' / 20:00</b></div>' +
-        '<div style="height:8px;border-radius:4px;background:rgba(255,255,255,.1);margin-top:8px;overflow:hidden">' +
-        '<div style="height:100%;width:' + (pct * 100).toFixed(1) + '%;background:linear-gradient(90deg,#3b6bff,#8b5cf6)"></div></div>' +
-        '<div class="psm-sub" style="margin-top:7px">Đến 20:00 hệ thống tự đưa bạn vào vùng đất Boss. Đồng hồ không reset khi đổi màn hình hoặc tải lại.</div>';
-      b.appendChild(row);
-
-      if (Ev.active) {
-        const r2 = el('div', 'psm-row');
-        r2.style.flexDirection = 'column';
-        r2.style.alignItems = 'stretch';
-        const pr = Ev.raid / Ev.LIMITS.raid;
-        r2.innerHTML =
-          '<div style="display:flex;justify-content:space-between"><b style="font-size:13px">⚔ Đang ở ' + Ev.dimName() + '</b>' +
-          '<b style="font-size:16px;color:' + (pr < 0.25 ? '#ff4d6d' : '#ffd93d') + '">' + M.fmtTime(Ev.raid) + '</b></div>' +
-          '<div style="height:8px;border-radius:4px;background:rgba(255,255,255,.1);margin-top:8px;overflow:hidden">' +
-          '<div style="height:100%;width:' + (pr * 100).toFixed(1) + '%;background:' + (pr < 0.25 ? '#ff4d6d' : '#ffd93d') + '"></div></div>' +
-          '<div class="psm-sub" style="margin-top:7px">Boss: <b>' + Ev.form.form + '</b> · HP khi vào: ' + Math.round(Ev.hpAtEntry) +
-          '<br>Hết giờ hoặc bị hạ → về chỗ cũ, HP khôi phục như lúc vào.</div>';
-        b.appendChild(r2);
-
-        const btnRow = el('div', 'psm-row');
-        btnRow.style.background = 'none'; btnRow.style.border = 'none'; btnRow.style.padding = '4px 0 12px';
-        if (Ev.phase === 'explore') {
-          const start = el('button', 'psm-btn', '⚔ KHIÊU CHIẾN BOSS');
-          start.style.flex = '1';
-          start.onclick = () => { this.close(); Ev.startBattle(); };
-          btnRow.appendChild(start);
-        } else if (Ev.phase === 'battle') {
-          btnRow.appendChild(el('div', 'psm-sub', 'Đang trong trận…'));
-        }
-        const back = el('button', 'psm-btn ghost', 'Rời vùng (thua)');
-        back.style.marginLeft = '8px';
-        back.onclick = () => { this.close(); Ev.fail('Tự rời vùng Boss'); };
-        btnRow.appendChild(back);
-        b.appendChild(btnRow);
-      } else {
-        const pick = el('div', 'psm-sub');
-        pick.style.margin = '14px 2px 8px';
-        pick.textContent = 'Hoặc vào thủ công một vùng đất Boss:';
-        b.appendChild(pick);
-        const list = M.FORMS.slice().sort((a, b2) => (b2.tier || 2) - (a.tier || 2)).slice(0, 12);
-        for (const f of list) {
-          const rr = el('div', 'psm-row');
-          rr.appendChild(this._icon(f, 48));
-          const info = el('div', 'psm-info');
-          info.innerHTML = '<b style="font-size:12.5px">' + (M.Event.DIMENSION[f.types[0]] || { name: 'Chiều Không' }).name + '</b>' +
-            '<div class="psm-sub">' + f.form + '</div>';
-          rr.appendChild(info);
-          const go = el('button', 'psm-btn', 'Vào');
-          go.onclick = () => { this.close(); M.Event.warpTo(f, { force: true }); };
-          rr.appendChild(go);
-          b.appendChild(rr);
-        }
-      }
-    },
-
     renderBoss() {
       const groups = [[4, 'Tier 4 — Huyền thoại'], [3, 'Tier 3 — Cực mạnh'], [2, 'Tier 2 — Mạnh'], [1, 'Tier 1 — Thường']];
       for (const [tier, label] of groups) {
@@ -448,11 +381,8 @@
             '<div class="psm-sub">' + (done ? '✅ Đã hạ · đã mở khoá' : 'HP ' + (f.tier === 4 ? 1700 : f.tier === 3 ? 1250 : f.tier === 2 ? 900 : 620) +
               ' · Cần hạ để mở khoá') + '</div>';
           row.appendChild(info);
-          const b = el('button', 'psm-btn' + (done ? ' ghost' : ''), done ? 'Đánh lại' : 'Chiến');
-          b.onclick = () => {
-            this.close();
-            M.Boss.start(f, null, (r) => this.afterBoss(r));
-          };
+          const b = el('button', 'psm-btn ghost', done ? 'Đã hạ' : 'Chờ 20:00');
+          b.disabled = !done;
           row.appendChild(b);
           this.body.appendChild(row);
         }
@@ -567,12 +497,12 @@
     renderNotes() {
       const n = el('div', 'psm-note');
       n.innerHTML = `
-      <div style="background:rgba(120,40,20,.55);border:1px solid #ff7a45;border-radius:12px;padding:10px 12px;margin-bottom:12px">
-        <b style="color:#ffb08a">⚠ PHẦN 19 CHƯA HOẠT ĐỘNG</b>
-        <div style="font-size:11.5px;color:#ffd9c7;margin-top:5px">
-          Hệ thống đếm giờ 20:00 / 05:00 và dịch chuyển vùng đất Boss đang lỗi.
-          Tab <b>Vùng Boss ⏱</b> hiện chỉ là giao diện, chưa dịch chuyển được.
-          Đang sửa ở bản sau.
+      <div style="background:rgba(30,70,120,.55);border:1px solid #4aa8ff;border-radius:12px;padding:10px 12px;margin-bottom:12px">
+        <b style="color:#8ecdff">⏱ CÁCH ĐÁNH BOSS MEGA</b>
+        <div style="font-size:11.5px;color:#cfe6ff;margin-top:5px">
+          Vào game, chờ đồng hồ trên HUD đạt <b>20:00</b>. Hệ thống <b>Grieta</b> của game
+          sẽ mở cổng dẫn tới boss Mega. Bước vào cổng và hạ boss trong <b>5 phút</b>.
+          Hết giờ hoặc bị hạ → về chỗ cũ, máu giữ nguyên.
         </div>
       </div>
       <h4>🎮 BẢN CẬP NHẬT: HỆ THỐNG MEGA EVOLUTION</h4>
@@ -580,7 +510,7 @@
       <ul>
         <li><b>98 dạng Mega</b> gồm đủ X / Y / Z, Primal Reversion, Floette Eternal Flower.</li>
         <li><b>Sprite 8 hướng + 7 animation</b> cho từng dạng (Idle / Walk / Attack / Shoot / Charge / Hurt / Faint).</li>
-        <li><b>Boss Battle 2D</b>: arena riêng, AI (đuổi – báo trước – đòn thường – đòn đặc biệt – nổi giận), hitbox, HP.</li>
+        <li><b>Boss trong Grieta có sẵn</b>: đồng hồ HUD đạt 20:00 → cổng mở → vào đấu boss Mega, giới hạn 5 phút.</li>
         <li><b>Mở khoá theo Boss</b>: chưa hạ Boss thì không thể Mega.</li>
         <li><b>Mega Stone</b>: nhận sau khi hạ Boss, dùng sai đá bị từ chối.</li>
         <li><b>Cinematic 5 giai đoạn</b>: Kích hoạt → Nạp năng lượng → Biến đổi → Bùng nổ → Hiển lộ.</li>
